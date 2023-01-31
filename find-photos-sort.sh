@@ -16,5 +16,6 @@ find "$search_path" -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" | while rea
   fi
 
   # move the photo file to the appropriate directory in the destination path
-  mv "$photo" "$dest_path/$created"
+  # mv "$photo" "$dest_path/$created" <-- change to mv (move) when you've tested with cp (copy first)
+  cp "$photo" "$dest_path/$created"
 done

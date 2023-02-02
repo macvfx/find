@@ -6,7 +6,7 @@ read -p "Enter the destination path: " dest_path
 # find all photo files in the specified directory and its subdirectories
 find "$search_path" -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" | while read photo; do
   # get the creation date from EXIF data with mdls of the photo file
-  created=$(mdls -attr kMDItemContentCreationDate "$photo" |awk '{print $3}'|uniq)
+  created=$(mdls -attr kMDItemContentCreationDate "$photo" |awk '{print $3}')
 
   # create a directory for the creation date in the destination path if it doesn't already exist
   if [ ! -d "$dest_path/$created" ]; then

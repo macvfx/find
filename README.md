@@ -9,5 +9,5 @@
 
 ## Notes
 
-** Find photos scripts: get creation date using stat command, make folders and sort or get the creation date from EXIF data, make folders and sort **
-** Find trailing spaces at the end of a directory name and rewrite the name.  Use with caution. Test before using. Always have backups.**
+- Find photos scripts: get creation date using stat command, make folders and sort or get the creation date from EXIF data, make folders and sort
+- Find trailing spaces at the end of a directory name and rewrite the name.  Use with caution. **Test before using. Always have backups.**

@@ -7,8 +7,9 @@ else
   search_directory="$1"
 fi
 
-# Log file
-log_file="$search_directory/correction.log"
+# Log file name with current date and time
+log_file="corrections_$(date +"%Y%m%d_%H%M%S").log"
+log_file_path="$search_directory/$log_file"
 
 # Initialize corrections counter
 corrections=0
@@ -25,6 +26,13 @@ shopt -s extglob
 # Execute the find command and store the results in the temporary file
 "${find_cmd[@]}" | tr '\n' '\0' > "$tmp_file"
 
+# If no directories with trailing spaces are found, exit with a message
+if [ ! -s "$tmp_file" ]; then
+  echo "No directories with trailing spaces found. No changes needed."
+  rm "$tmp_file" # Remove the temporary file
+  exit 0
+fi
+
 # Display found directories and ask for confirmation before proceeding with changes
 echo "The following directories have trailing spaces:"
 while IFS= read -r -d '' dir_with_space; do
@@ -39,7 +47,7 @@ if [ "$answer" = "y" ]; then
   while IFS= read -r -d '' source_name; do
     dest_name="${source_name%"${source_name##*[![:space:]]}"}"
     mv_log="$(date +"%Y-%m-%d %H:%M:%S") - Moved '$source_name' to '$dest_name'"
-    mv -- "$source_name" "$dest_name" && echo "$mv_log" >> "$log_file"
+    mv -- "$source_name" "$dest_name" && echo "$mv_log" >> "$log_file_path"
     ((corrections++))
   done < "$tmp_file"
 
@@ -50,4 +58,5 @@ if [ "$answer" = "y" ]; then
   rm "$tmp_file"
 else
   echo "No changes were made."
+  rm "$tmp_file" # Remove the temporary file
 fi

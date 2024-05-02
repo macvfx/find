@@ -8,7 +8,7 @@
 3. find-trailing-space-replace.sh ** Find directories with trailing space and rename them **
 4. findspace-confirm.sh ** Find the trailing space, log, and ask to confirm the changes before making any **
 5. mkR3Dthumbnails.sh ** make image thumbnails from ALL r3d files in a given directory
-6. mkR3Dthumbnails.sh ** make ONLY 1 image thumbnail from the r3d files found in a given RDC directory
+6. mk1R3Dthumbnails.sh ** make ONLY 1 image thumbnail from the r3d files found in a given RDC directory
 
 ## Notes
 

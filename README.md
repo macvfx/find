@@ -22,9 +22,9 @@
 ## Add or Remove Headers Script Notes
 
 - Find shell scripts in the default path and add a header
-# - Adds header after shebang (#!) if present
-# - Removes header exactly if --rm is specified
-# - Skips duplicates
-# - Preserves timestamps
-# - Supports dry-run
-# - Colored output, counters, recursive search, custom file pattern/path
+- Adds header after shebang (#!) if present
+- Removes header exactly if --rm is specified
+- Skips duplicates
+- Preserves timestamps
+- Supports dry-run
+- Colored output, counters, recursive search, custom file pattern/path

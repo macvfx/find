@@ -10,7 +10,8 @@
 5. **find-trailing-space-replace.sh** Find directories with trailing space and rename them.
 6. **find-photos-sort.sh** Find photos, get creation date using stat command, make folders and sort.
 7. **find-mdls-exif.sh** Find photos, get the creation date from EXIF data, make folders and sort.
-8. **mk1R3Dthumbnails.sh** make ONLY 1 image thumbnail from the r3d files found in a given RDC directory. 
+8. **mk1R3Dthumbnails.sh** make ONLY 1 image thumbnail from the r3d files found in a given RDC directory.
+9. **find build folders** scans for hidden .build folders created by Swift Package Manager (SPM), reports sizes/locations, exports a report and CSV, then clean and archive as a password-protected zip.
 
 ## Notes
 

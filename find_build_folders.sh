@@ -12,7 +12,7 @@ usage() {
 cat <<'EOF'
 
 USAGE
-  bash find_build_folders.sh [SEARCH_ROOT] [REPORT_DIR]
+  bash find_build_folders.sh [OPTIONS] [SEARCH_ROOT] [REPORT_DIR]
   bash find_build_folders.sh -h | --help
 
 DESCRIPTION
@@ -30,6 +30,19 @@ ARGUMENTS
   REPORT_DIR    (optional) Absolute path where the .txt report and .csv
                 will be saved. Defaults to your Desktop: $HOME/Desktop
                 The directory will be created if it does not exist.
+
+OPTIONS
+  --yes-clean       Run Step 2 (swift package clean / delete .build) without
+                    prompting for the initial proceed confirmation.
+  --yes-archive     Run Step 3 archive flow without the initial proceed prompt.
+                    If --zip-password is not provided, password prompts remain.
+  --yes-all         Equivalent to: --yes-clean --yes-archive
+  --no-clean        Skip Step 2 entirely.
+  --no-archive      Skip Step 3 entirely.
+  --zip-path PATH   Pre-fill archive output path (used by Step 3).
+  --zip-password PW Use a non-interactive zip password for Step 3 (advanced).
+                    Warning: command-line passwords may be visible in shell
+                    history/process lists. Prefer interactive prompt when possible.
 
 OUTPUT FILES
   Both files are saved to REPORT_DIR and timestamped:
@@ -55,7 +68,8 @@ INTERACTIVE STEPS (run after the scan)
   Step 3 — Password-Protected Zip Archive
     Prompts for a destination path (default: ~/Downloads/<FolderName>_<timestamp>.zip)
     Prompts for a password (hidden input, confirmed twice).
-    Runs: zip -er <archive.zip> <SEARCH_ROOT> -x "*.DS_Store" -x "__MACOSX"
+    Runs zip with excludes for common cache/build artifacts, including:
+      .DS_Store, __MACOSX, .build, and Xcode DerivedData folders
     Reports final archive path and size on success.
 
 SKIPPED DIRECTORIES
@@ -70,7 +84,13 @@ EXAMPLES
   bash find_build_folders.sh ~/Developer
 
   # Scan a path with spaces, save reports to Documents
-  bash find_build_folders.sh "/Users/xavier/Downloads/All Code Projects" ~/Documents
+  bash find_build_folders.sh "~/Downloads/All Code Projects" ~/Documents
+
+  # Automation-friendly run: clean .build folders, skip archive prompts
+  bash find_build_folders.sh --yes-clean --no-archive "~/Downloads/All Code Projects"
+
+  # Fully non-interactive archive (less secure due to CLI password)
+  bash find_build_folders.sh --yes-all --zip-path ~/Downloads/projects.zip --zip-password "REDACTED" ~/Developer
 
   # Show this help message
   bash find_build_folders.sh --help
@@ -86,15 +106,74 @@ NOTES
 EOF
 }
 
-# Show help if -h or --help passed
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  usage
-  exit 0
-fi
+# ---------------- Arguments ---------------------------------------------------
+AUTO_CLEAN=0
+AUTO_ARCHIVE=0
+SKIP_CLEAN=0
+SKIP_ARCHIVE=0
+ZIP_PATH_ARG=""
+ZIP_PASSWORD_ARG=""
+POSITIONAL=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --yes-clean)
+      AUTO_CLEAN=1
+      shift
+      ;;
+    --yes-archive)
+      AUTO_ARCHIVE=1
+      shift
+      ;;
+    --yes-all)
+      AUTO_CLEAN=1
+      AUTO_ARCHIVE=1
+      shift
+      ;;
+    --no-clean)
+      SKIP_CLEAN=1
+      shift
+      ;;
+    --no-archive)
+      SKIP_ARCHIVE=1
+      shift
+      ;;
+    --zip-path)
+      [[ $# -lt 2 ]] && { echo "Missing value for --zip-path" >&2; exit 1; }
+      ZIP_PATH_ARG="$2"
+      shift 2
+      ;;
+    --zip-password)
+      [[ $# -lt 2 ]] && { echo "Missing value for --zip-password" >&2; exit 1; }
+      ZIP_PASSWORD_ARG="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do
+        POSITIONAL+=( "$1" )
+        shift
+      done
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      echo "Run with --help for usage." >&2
+      exit 1
+      ;;
+    *)
+      POSITIONAL+=( "$1" )
+      shift
+      ;;
+  esac
+done
 
 # ---------------- Configuration ----------------------------------------------
-SEARCH_ROOT="${1:-$HOME}"                        # First arg or $HOME
-REPORT_DIR="${2:-$HOME/Desktop}"                 # Second arg or Desktop
+SEARCH_ROOT="${POSITIONAL[0]:-$HOME}"             # First arg or $HOME
+REPORT_DIR="${POSITIONAL[1]:-$HOME/Desktop}"      # Second arg or Desktop
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 REPORT_FILE="$REPORT_DIR/build_folders_$TIMESTAMP.txt"
 CSV_FILE="$REPORT_DIR/build_folders_$TIMESTAMP.csv"
@@ -231,8 +310,15 @@ echo "=============================================="
 echo "  Run 'swift package clean' on each project?"
 echo "  This removes .build artifacts (~$GRAND_TOTAL_HUMAN recoverable)"
 echo ""
-printf "  Proceed? [y/N] "
-read -r CLEAN_CONFIRM || true
+if [[ $SKIP_CLEAN -eq 1 ]]; then
+  CLEAN_CONFIRM="n"
+elif [[ $AUTO_CLEAN -eq 1 ]]; then
+  CLEAN_CONFIRM="y"
+  echo "  Auto mode enabled (--yes-clean) — proceeding."
+else
+  printf "  Proceed? [y/N] "
+  read -r CLEAN_CONFIRM || true
+fi
 
 if [[ "$CLEAN_CONFIRM" =~ ^[Yy]$ ]]; then
   echo ""
@@ -279,7 +365,11 @@ if [[ "$CLEAN_CONFIRM" =~ ^[Yy]$ ]]; then
   echo ""
 else
   echo ""
-  echo "  Skipped — no changes made."
+  if [[ $SKIP_CLEAN -eq 1 ]]; then
+    echo "  Skipped by option (--no-clean)."
+  else
+    echo "  Skipped — no changes made."
+  fi
   echo ""
 fi
 
@@ -294,31 +384,56 @@ echo "  $SEARCH_ROOT"
 echo ""
 
 # Suggest a zip filename based on the folder name + timestamp
-FOLDER_SLUG=$(basename "$SEARCH_ROOT" | tr ' ' '_')
+SEARCH_ROOT_ABS=$(cd "$SEARCH_ROOT" 2>/dev/null && pwd || echo "$SEARCH_ROOT")
+FOLDER_SLUG=$(basename "$SEARCH_ROOT_ABS" | tr ' ' '_')
 ZIP_DEFAULT="$HOME/Downloads/${FOLDER_SLUG}_$TIMESTAMP.zip"
 
-printf "  Archive path [%s]: " "$ZIP_DEFAULT"
-read -r ZIP_PATH || true
-ZIP_PATH="${ZIP_PATH:-$ZIP_DEFAULT}"
-
-printf "  Proceed with archive? [y/N] "
-read -r ZIP_CONFIRM || true
+if [[ $SKIP_ARCHIVE -eq 1 ]]; then
+  ZIP_CONFIRM="n"
+  ZIP_PATH="$ZIP_DEFAULT"
+elif [[ $AUTO_ARCHIVE -eq 1 ]]; then
+  ZIP_CONFIRM="y"
+  if [[ -n "$ZIP_PATH_ARG" ]]; then
+    ZIP_PATH="$ZIP_PATH_ARG"
+  else
+    ZIP_PATH="$ZIP_DEFAULT"
+  fi
+  echo "  Archive path [$ZIP_DEFAULT]: $ZIP_PATH"
+  echo "  Auto mode enabled (--yes-archive) — proceeding."
+else
+  printf "  Archive path [%s]: " "$ZIP_DEFAULT"
+  if [[ -n "$ZIP_PATH_ARG" ]]; then
+    ZIP_PATH="$ZIP_PATH_ARG"
+    echo "$ZIP_PATH"
+  else
+    read -r ZIP_PATH || true
+  fi
+  ZIP_PATH="${ZIP_PATH:-$ZIP_DEFAULT}"
+  printf "  Proceed with archive? [y/N] "
+  read -r ZIP_CONFIRM || true
+fi
 
 if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
   echo ""
-  echo "  Enter zip password (input hidden):"
-  printf "  Password     : "
-  read -rs ZIP_PASS || true
-  echo ""
-  printf "  Confirm      : "
-  read -rs ZIP_PASS2 || true
-  echo ""
+  if [[ -n "$ZIP_PASSWORD_ARG" ]]; then
+    ZIP_PASS="$ZIP_PASSWORD_ARG"
+    ZIP_PASS2="$ZIP_PASSWORD_ARG"
+    echo "  Using password from --zip-password (non-interactive mode)."
+  else
+    echo "  Enter zip password (input hidden):"
+    printf "  Password     : "
+    read -rs ZIP_PASS || true
+    echo ""
+    printf "  Confirm      : "
+    read -rs ZIP_PASS2 || true
+    echo ""
 
-  if [[ "$ZIP_PASS" != "$ZIP_PASS2" ]]; then
-    echo ""
-    echo "  ✗ Passwords do not match — archive cancelled."
-    echo ""
-    exit 1
+    if [[ "$ZIP_PASS" != "$ZIP_PASS2" ]]; then
+      echo ""
+      echo "  ✗ Passwords do not match — archive cancelled."
+      echo ""
+      exit 1
+    fi
   fi
 
   if [[ -z "$ZIP_PASS" ]]; then
@@ -332,10 +447,15 @@ if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
   echo "  Zipping... (this may take a while for large folders)"
   echo ""
 
-  # zip -er : recurse into dirs, encrypt with AES password prompt bypass via -P
-  # Using -P is less secure (visible in ps) so we pipe via stdin with -P workaround
-  # Best practice on macOS: pass password via env to avoid shell history exposure
-  if zip -er "$ZIP_PATH" "$SEARCH_ROOT" -x "*.DS_Store" -x "__MACOSX" <<< "$ZIP_PASS"; then
+  # Use the password already collected by the script to avoid zip prompting twice.
+  # Note: zip -P exposes the password to process listings while the command runs.
+  # This is acceptable here for convenience, but interactive/manual use is safer.
+  if zip -r -P "$ZIP_PASS" "$ZIP_PATH" "$SEARCH_ROOT" \
+    -x "*.DS_Store" \
+    -x "__MACOSX" \
+    -x "*/.build/*" \
+    -x "*/DerivedData/*" \
+    -x "*/Library/Developer/Xcode/DerivedData/*"; then
     zip_size_kb=$(du -sk "$ZIP_PATH" 2>/dev/null | awk '{print $1}')
     zip_size_human=$(human_readable $zip_size_kb)
     echo ""
@@ -351,7 +471,11 @@ if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
   fi
 else
   echo ""
-  echo "  Skipped — no archive created."
+  if [[ $SKIP_ARCHIVE -eq 1 ]]; then
+    echo "  Skipped by option (--no-archive)."
+  else
+    echo "  Skipped — no archive created."
+  fi
   echo ""
 fi
 

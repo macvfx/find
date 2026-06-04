@@ -135,11 +135,12 @@ bash "find_xcode_projects_cleanup.sh" --yes-all --zip-password-keychain "~/Downl
 ```
 On first run you'll be prompted once; the password is saved to macOS Keychain and reused automatically on future runs.
 
-### 8) Archive to a custom path
+### 8) Archive to a custom folder (auto-named with timestamp)
 ```bash
 bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password \
-  --zip-path ~/Documents/code_backup.zip "~/Downloads/All Code Projects"
+  --zip-path ~/Dropbox/ "~/Downloads/All Code Projects"
 ```
+If `--zip-path` points to a directory, the script auto-names the file (e.g. `All_Code_Projects_2026-06-04_12-30-00.zip`). Pass a full file path instead to choose the exact name.
 
 ## Space Saved Estimates
 

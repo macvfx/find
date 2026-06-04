@@ -38,6 +38,12 @@ OPTIONS
   --no-archive       Skip archive step
   --zip-path PATH    Pre-fill archive output path (used by archive step)
   --zip-password PW  Use a non-interactive zip password for archive step
+  --no-zip-password  Create archive without password (unencrypted zip)
+  --zip-password-keychain
+                     Store/retrieve zip password from macOS Keychain.
+                     If a saved password exists, it is used automatically.
+                     If not, you are prompted once, then the password is
+                     saved for future runs.
 
 OUTPUT FILES
   xcode_projects_YYYY-MM-DD_HH-MM-SS.txt
@@ -61,6 +67,12 @@ EXAMPLES
   # Report only (skip destructive steps) and save reports to Documents
   bash find_xcode_projects_cleanup.sh --no-clean --no-deriveddata "$HOME/Developer" "$HOME/Documents"
 
+  # Fully unattended: clean + archive with no password
+  bash find_xcode_projects_cleanup.sh --yes-all --no-zip-password "$HOME/Developer"
+
+  # Use macOS Keychain for the zip password (prompts once, remembers for next time)
+  bash find_xcode_projects_cleanup.sh --yes-all --zip-password-keychain "$HOME/Developer"
+
   # Typical summary output (example)
   #   Estimated recoverable (.build)         : 1.8 GB
   #   Estimated recoverable (DerivedData)    : 6.4 GB
@@ -77,6 +89,10 @@ SKIP_DERIVEDDATA=0
 SKIP_ARCHIVE=0
 ZIP_PATH_ARG=""
 ZIP_PASSWORD_ARG=""
+NO_ZIP_PASSWORD=0
+ZIP_PASSWORD_KEYCHAIN=0
+KEYCHAIN_SERVICE="find_xcode_projects_cleanup"
+KEYCHAIN_ACCOUNT="zip_password"
 POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
@@ -125,6 +141,14 @@ while [[ $# -gt 0 ]]; do
       ZIP_PASSWORD_ARG="$2"
       shift 2
       ;;
+    --no-zip-password)
+      NO_ZIP_PASSWORD=1
+      shift
+      ;;
+    --zip-password-keychain)
+      ZIP_PASSWORD_KEYCHAIN=1
+      shift
+      ;;
     --)
       shift
       while [[ $# -gt 0 ]]; do
@@ -150,6 +174,23 @@ TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 REPORT_FILE="$REPORT_DIR/xcode_projects_$TIMESTAMP.txt"
 CSV_FILE="$REPORT_DIR/xcode_projects_$TIMESTAMP.csv"
 DERIVED_DATA_ROOT="$HOME/Library/Developer/Xcode/DerivedData"
+
+# Validate mutually exclusive password options
+_pw_opts=$(( (ZIP_PASSWORD_ARG != "" ? 1 : 0) + NO_ZIP_PASSWORD + ZIP_PASSWORD_KEYCHAIN ))
+if (( _pw_opts > 1 )); then
+  echo "Error: --zip-password, --no-zip-password, and --zip-password-keychain are mutually exclusive." >&2
+  exit 1
+fi
+
+keychain_get_password() {
+  security find-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w 2>/dev/null
+}
+
+keychain_save_password() {
+  local pw="$1"
+  security delete-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" >/dev/null 2>&1 || true
+  security add-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w "$pw"
+}
 
 PRUNE_PATHS=(
   "$HOME/Library"
@@ -589,9 +630,16 @@ fi
 echo "=============================================="
 echo "  Archive Projects Folder"
 echo "=============================================="
-echo "  Create a password-protected zip of:"
+if [[ $NO_ZIP_PASSWORD -eq 1 ]]; then
+  echo "  Create an unencrypted zip of:"
+else
+  echo "  Create a password-protected zip of:"
+fi
 echo "  $SEARCH_ROOT"
-echo "  Excludes: .build, DerivedData, .DS_Store, __MACOSX"
+echo "  Excludes: .build, DerivedData, xcuserdata, Pods, Carthage/Build,"
+echo "            SourcePackages, .swiftpm, .dSYM, .app bundles, Index,"
+echo "            ModuleCache, Build products/intermediates, node_modules,"
+echo "            .DS_Store, __MACOSX"
 echo ""
 
 SEARCH_ROOT_ABS=$(cd "$SEARCH_ROOT" 2>/dev/null && pwd || echo "$SEARCH_ROOT")
@@ -621,43 +669,111 @@ fi
 
 if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
   echo ""
-  if [[ -n "$ZIP_PASSWORD_ARG" ]]; then
+  ZIP_PASS=""
+  if [[ $NO_ZIP_PASSWORD -eq 1 ]]; then
+    echo "  No password — creating unencrypted archive."
+  elif [[ -n "$ZIP_PASSWORD_ARG" ]]; then
     ZIP_PASS="$ZIP_PASSWORD_ARG"
-    ZIP_PASS2="$ZIP_PASSWORD_ARG"
     echo "  Using password from --zip-password (non-interactive mode)."
-  else
-    echo "  Enter zip password (input hidden):"
-    printf "  Password     : "
-    read -rs ZIP_PASS || true
-    echo ""
-    printf "  Confirm      : "
-    read -rs ZIP_PASS2 || true
-    echo ""
-    if [[ "$ZIP_PASS" != "$ZIP_PASS2" ]]; then
-      echo ""
-      echo "  ✗ Passwords do not match — archive cancelled."
-      echo ""
-      exit 1
-    fi
-  fi
+  elif [[ $ZIP_PASSWORD_KEYCHAIN -eq 1 ]]; then
+    if ZIP_PASS=$(keychain_get_password) && [[ -n "$ZIP_PASS" ]]; then
+      echo "  Using password from macOS Keychain."
+    else
+      echo "  No saved password found in Keychain."
+      MAX_ATTEMPTS=3
+      for (( attempt=1; attempt<=MAX_ATTEMPTS; attempt++ )); do
+        echo "  Enter zip password (input hidden):"
+        printf "  Password     : "
+        read -rs ZIP_PASS || true
+        echo ""
+        printf "  Confirm      : "
+        read -rs ZIP_PASS2 || true
+        echo ""
 
-  if [[ -z "$ZIP_PASS" ]]; then
-    echo ""
-    echo "  ✗ Password cannot be empty — archive cancelled."
-    echo ""
-    exit 1
+        if [[ -z "$ZIP_PASS" ]]; then
+          echo "  ✗ Password cannot be empty."
+        elif [[ "$ZIP_PASS" != "$ZIP_PASS2" ]]; then
+          echo "  ✗ Passwords do not match."
+        else
+          break
+        fi
+
+        if (( attempt < MAX_ATTEMPTS )); then
+          echo "  Retry ($((MAX_ATTEMPTS - attempt)) attempt(s) remaining)..."
+          echo ""
+        else
+          echo ""
+          echo "  ✗ Too many failed attempts — archive cancelled."
+          echo ""
+          exit 1
+        fi
+      done
+      if keychain_save_password "$ZIP_PASS"; then
+        echo "  ✓ Password saved to macOS Keychain for future runs."
+      else
+        echo "  ⚠ Could not save password to Keychain (continuing anyway)."
+      fi
+    fi
+  else
+    ZIP_PASS=""
+    MAX_ATTEMPTS=3
+    for (( attempt=1; attempt<=MAX_ATTEMPTS; attempt++ )); do
+      echo "  Enter zip password (input hidden):"
+      printf "  Password     : "
+      read -rs ZIP_PASS || true
+      echo ""
+      printf "  Confirm      : "
+      read -rs ZIP_PASS2 || true
+      echo ""
+
+      if [[ -z "$ZIP_PASS" ]]; then
+        echo "  ✗ Password cannot be empty."
+      elif [[ "$ZIP_PASS" != "$ZIP_PASS2" ]]; then
+        echo "  ✗ Passwords do not match."
+      else
+        break
+      fi
+
+      if (( attempt < MAX_ATTEMPTS )); then
+        echo "  Retry ($((MAX_ATTEMPTS - attempt)) attempt(s) remaining)..."
+        echo ""
+      else
+        echo ""
+        echo "  ✗ Too many failed attempts — archive cancelled."
+        echo ""
+        exit 1
+      fi
+    done
   fi
 
   echo ""
   echo "  Zipping... (this may take a while for large folders)"
   echo ""
 
-  if zip -r -P "$ZIP_PASS" "$ZIP_PATH" "$SEARCH_ROOT" \
+  ZIP_CMD=(zip -r)
+  if [[ -n "$ZIP_PASS" ]]; then
+    ZIP_CMD+=(-P "$ZIP_PASS")
+  fi
+
+  if "${ZIP_CMD[@]}" "$ZIP_PATH" "$SEARCH_ROOT" \
     -x "*.DS_Store" \
-    -x "__MACOSX" \
+    -x "*/__MACOSX/*" \
     -x "*/.build/*" \
     -x "*/DerivedData/*" \
-    -x "*/Library/Developer/Xcode/DerivedData/*"; then
+    -x "*/Library/Developer/Xcode/DerivedData/*" \
+    -x "*/xcuserdata/*" \
+    -x "*/Pods/*" \
+    -x "*/Carthage/Build/*" \
+    -x "*/.swiftpm/*" \
+    -x "*/SourcePackages/*" \
+    -x "*/Index.noindex/*" \
+    -x "*/ModuleCache.noindex/*" \
+    -x "*/Build/Intermediates.noindex/*" \
+    -x "*/Build/Products/*" \
+    -x "*/Logs/Build/*" \
+    -x "*/*.dSYM/*" \
+    -x "*/*.app/*" \
+    -x "*/node_modules/*"; then
     zip_size_kb=$(safe_du_kb "$ZIP_PATH")
     zip_size_human=$(human_readable_kb "$zip_size_kb")
     echo ""

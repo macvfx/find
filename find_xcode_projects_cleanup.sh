@@ -36,7 +36,8 @@ OPTIONS
   --no-clean         Skip xcodebuild clean step (useful in automation)
   --no-deriveddata   Skip DerivedData removal step
   --no-archive       Skip archive step
-  --zip-path PATH    Pre-fill archive output path (used by archive step)
+  --zip-path PATH    Archive destination: a folder (script names the file)
+                     or a full file path. Defaults to ~/Downloads/.
   --zip-password PW  Use a non-interactive zip password for archive step
   --no-zip-password  Create archive without password (unencrypted zip)
   --zip-password-keychain
@@ -176,7 +177,7 @@ CSV_FILE="$REPORT_DIR/xcode_projects_$TIMESTAMP.csv"
 DERIVED_DATA_ROOT="$HOME/Library/Developer/Xcode/DerivedData"
 
 # Validate mutually exclusive password options
-_pw_opts=$(( (ZIP_PASSWORD_ARG != "" ? 1 : 0) + NO_ZIP_PASSWORD + ZIP_PASSWORD_KEYCHAIN ))
+_pw_opts=$(( ( ${#ZIP_PASSWORD_ARG} > 0 ? 1 : 0 ) + NO_ZIP_PASSWORD + ZIP_PASSWORD_KEYCHAIN ))
 if (( _pw_opts > 1 )); then
   echo "Error: --zip-password, --no-zip-password, and --zip-password-keychain are mutually exclusive." >&2
   exit 1
@@ -644,25 +645,43 @@ echo ""
 
 SEARCH_ROOT_ABS=$(cd "$SEARCH_ROOT" 2>/dev/null && pwd || echo "$SEARCH_ROOT")
 FOLDER_SLUG=$(basename "$SEARCH_ROOT_ABS" | tr ' ' '_')
-ZIP_DEFAULT="$HOME/Downloads/${FOLDER_SLUG}_$TIMESTAMP.zip"
+ZIP_FILENAME="${FOLDER_SLUG}_$TIMESTAMP.zip"
+ZIP_DEFAULT="$HOME/Downloads/$ZIP_FILENAME"
+
+# Resolve --zip-path: if it's a directory, append the auto-generated filename
+resolve_zip_path() {
+  local p="$1"
+  if [[ -d "$p" ]]; then
+    echo "${p%/}/$ZIP_FILENAME"
+  else
+    echo "$p"
+  fi
+}
 
 if [[ $SKIP_ARCHIVE -eq 1 ]]; then
   ZIP_CONFIRM="n"
   ZIP_PATH="$ZIP_DEFAULT"
 elif [[ $AUTO_ARCHIVE -eq 1 ]]; then
   ZIP_CONFIRM="y"
-  ZIP_PATH="${ZIP_PATH_ARG:-$ZIP_DEFAULT}"
-  echo "  Archive path [$ZIP_DEFAULT]: $ZIP_PATH"
+  if [[ -n "$ZIP_PATH_ARG" ]]; then
+    ZIP_PATH="$(resolve_zip_path "$ZIP_PATH_ARG")"
+  else
+    ZIP_PATH="$ZIP_DEFAULT"
+  fi
+  echo "  Archive path: $ZIP_PATH"
   echo "  Auto mode enabled (--yes-archive) — proceeding."
 else
   printf "  Archive path [%s]: " "$ZIP_DEFAULT"
   if [[ -n "$ZIP_PATH_ARG" ]]; then
-    ZIP_PATH="$ZIP_PATH_ARG"
+    ZIP_PATH="$(resolve_zip_path "$ZIP_PATH_ARG")"
     echo "$ZIP_PATH"
   else
     read -r ZIP_PATH || true
+    ZIP_PATH="${ZIP_PATH:-$ZIP_DEFAULT}"
+    if [[ -d "$ZIP_PATH" ]]; then
+      ZIP_PATH="$(resolve_zip_path "$ZIP_PATH")"
+    fi
   fi
-  ZIP_PATH="${ZIP_PATH:-$ZIP_DEFAULT}"
   printf "  Proceed with archive? [y/N] "
   read -r ZIP_CONFIRM || true
 fi

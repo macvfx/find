@@ -34,11 +34,19 @@ Use this when you want to:
 - remove matching Xcode `DerivedData` folders
 - optionally create a password-protected zip archive of the scanned folder
 - estimate recoverable `.build` + `DerivedData` space before cleanup
-- archive step excludes common cache/build artifacts by default:
-  - `.build`
-  - `DerivedData`
-  - `.DS_Store`
-  - `__MACOSX`
+- archive step excludes all common cache/build artifacts by default:
+  - `.build`, `DerivedData`, `.DS_Store`, `__MACOSX`
+  - `xcuserdata`, `Pods`, `Carthage/Build`
+  - `.swiftpm`, `SourcePackages`
+  - `Index.noindex`, `ModuleCache.noindex`
+  - `Build/Intermediates.noindex`, `Build/Products`, `Logs/Build`
+  - `.dSYM` bundles, `.app` bundles
+  - `node_modules`
+- archive password options:
+  - interactive prompt with retry (default)
+  - `--zip-password PW` for scripted runs
+  - `--no-zip-password` for unencrypted archives
+  - `--zip-password-keychain` to store/retrieve from macOS Keychain
 
 Best for:
 - Xcode/macOS app projects
@@ -95,8 +103,11 @@ bash "find_build_folders.sh" \
 
 Notes:
 - `--zip-password` is convenient for automation but less secure (shell history/process visibility)
-- Prefer the interactive password prompt when possible
-- The archive step excludes `.build` and `DerivedData` paths by default to keep archives smaller/cleaner
+- `--zip-password-keychain` is the recommended option for repeated unattended runs — password stays in macOS Keychain, not in shell history
+- `--no-zip-password` skips encryption entirely (fastest, fully non-interactive)
+- `--zip-password`, `--no-zip-password`, and `--zip-password-keychain` are mutually exclusive
+- The interactive password prompt allows up to 3 retry attempts on mismatch
+- The archive step excludes `.build`, `DerivedData`, `xcuserdata`, `Pods`, `Carthage/Build`, `.swiftpm`, `SourcePackages`, `.dSYM`, `.app` bundles, index/module caches, build products/intermediates, `node_modules`, `.DS_Store`, and `__MACOSX` by default
 
 ### 3) Xcode cleanup (run `xcodebuild clean`, remove DerivedData)
 ```bash
@@ -111,6 +122,23 @@ bash "find_xcode_projects_cleanup.sh" --yes-clean --yes-deriveddata --no-archive
 ### 5) Xcode report-only mode (no changes)
 ```bash
 bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata "~/Downloads/All Code Projects"
+```
+
+### 6) Fully unattended — clean + unencrypted archive
+```bash
+bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password "~/Downloads/All Code Projects"
+```
+
+### 7) Fully unattended — clean + archive with Keychain password
+```bash
+bash "find_xcode_projects_cleanup.sh" --yes-all --zip-password-keychain "~/Downloads/All Code Projects"
+```
+On first run you'll be prompted once; the password is saved to macOS Keychain and reused automatically on future runs.
+
+### 8) Archive to a custom path
+```bash
+bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password \
+  --zip-path ~/Documents/code_backup.zip "~/Downloads/All Code Projects"
 ```
 
 ## Space Saved Estimates

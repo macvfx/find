@@ -22,6 +22,33 @@ APP_SEARCH_PATHS=(
     "/Applications/Utilities"
 )
 
+display_item_for_app() {
+    APP="$1"
+
+    if [ "${APP#/Applications/}" != "$APP" ]; then
+        REL_PATH="${APP#/Applications/}"
+
+        case "$REL_PATH" in
+            */*)
+                TOP_LEVEL="${REL_PATH%%/*}"
+                REST_PATH="${REL_PATH#*/}"
+
+                if [ "$TOP_LEVEL" = "Utilities" ] && [ "$REST_PATH" = "$(basename "$APP")" ]; then
+                    basename "$APP" .app
+                else
+                    printf '%s\n' "$TOP_LEVEL"
+                fi
+                ;;
+            *)
+                basename "$APP" .app
+                ;;
+        esac
+        return
+    fi
+
+    basename "$(dirname "$APP")"
+}
+
 is_intel_only_macho() {
     TARGET="$1"
     INFO="$(file "$TARGET" 2>/dev/null)"
@@ -56,7 +83,7 @@ for DIR in "${APP_SEARCH_PATHS[@]}"; do
             [ -n "$EXEC_PATH" ] || continue
 
             if is_intel_only_macho "$EXEC_PATH"; then
-                basename "$APP" .app >> "$RESULTS"
+                display_item_for_app "$APP" >> "$RESULTS"
             fi
         done
 done
@@ -68,4 +95,4 @@ if [ -z "$APP_NAMES" ]; then
     APP_NAMES="none"
 fi
 
-printf 'intel_only_count=%s;intel_only_apps=%s\n' "$COUNT" "$APP_NAMES"
+printf '%s;apps=%s\n' "$COUNT" "$APP_NAMES"

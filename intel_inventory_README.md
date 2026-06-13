@@ -79,7 +79,7 @@ ssh admin@remote-mac 'bash -s' < intel_inventory.sh
 Example output:
 
 ```text
-intel_only_count=3;intel_only_apps=Example App,Legacy Tool,Old Utility
+3;apps=Example App,Legacy Tool,Old Utility
 ```
 
 This is intentionally compact so it can be used by systems that store stdout
@@ -104,8 +104,12 @@ Suggested setup:
 The stored value will look like:
 
 ```text
-intel_only_count=3;intel_only_apps=Example App,Legacy Tool,Old Utility
+3;apps=Example App,Legacy Tool,Old Utility
 ```
+
+Nested app folders are collapsed to keep the custom attribute shorter. For
+example, several Intel-only apps inside `/Applications/Example Suite/` are
+reported once as `Example Suite`.
 
 ## Optional Binary Scan
 

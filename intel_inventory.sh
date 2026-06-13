@@ -31,7 +31,7 @@ Usage:
 
 Examples:
   ./IntelInventory.sh
-  ./IntelInventory.sh --path /usr/local/bin --path /opt
+  ./IntelInventory.sh --path /usr/local/bin --path /opt/homebrew/bin --path /opt/local/bin
   ./IntelInventory.sh --format csv > intel-apps.csv
   ./IntelInventory.sh --format mdm
   ssh user@mac 'bash -s -- --format csv' < IntelInventory.sh > mac-intel-apps.csv
@@ -93,7 +93,17 @@ case "$FORMAT" in
         ;;
 esac
 
-RESULTS="$(mktemp "${TMPDIR:-/tmp}/intel_inventory.XXXXXX")"
+make_temp_file() {
+    TEMP_ROOT="${TMPDIR:-/tmp}"
+
+    if [ ! -d "$TEMP_ROOT" ] || [ ! -w "$TEMP_ROOT" ]; then
+        TEMP_ROOT="/tmp"
+    fi
+
+    mktemp "$TEMP_ROOT/intel_inventory.XXXXXX"
+}
+
+RESULTS="$(make_temp_file)"
 trap 'rm -f "$RESULTS"' EXIT
 
 is_apple_silicon() {
@@ -242,7 +252,7 @@ case "$FORMAT" in
             emit_csv "$OUTPUT"
             echo "$OUTPUT"
         else
-            TEMP_CSV="$(mktemp "${TMPDIR:-/tmp}/intel_inventory_csv.XXXXXX")"
+            TEMP_CSV="$(make_temp_file)"
             emit_csv "$TEMP_CSV"
             cat "$TEMP_CSV"
             rm -f "$TEMP_CSV"

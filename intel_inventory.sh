@@ -122,6 +122,33 @@ write_result() {
     printf '%s\t%s\t%s\n' "$TYPE" "$NAME" "$PATH_VALUE" >> "$RESULTS"
 }
 
+display_item_for_app() {
+    APP="$1"
+
+    if [ "${APP#/Applications/}" != "$APP" ]; then
+        REL_PATH="${APP#/Applications/}"
+
+        case "$REL_PATH" in
+            */*)
+                TOP_LEVEL="${REL_PATH%%/*}"
+                REST_PATH="${REL_PATH#*/}"
+
+                if [ "$TOP_LEVEL" = "Utilities" ] && [ "$REST_PATH" = "$(basename "$APP")" ]; then
+                    basename "$APP" .app
+                else
+                    printf '%s\n' "$TOP_LEVEL"
+                fi
+                ;;
+            *)
+                basename "$APP" .app
+                ;;
+        esac
+        return
+    fi
+
+    basename "$(dirname "$APP")"
+}
+
 is_intel_only_macho() {
     TARGET="$1"
     INFO="$(file "$TARGET" 2>/dev/null)"
@@ -218,14 +245,23 @@ emit_human() {
 }
 
 emit_mdm() {
-    COUNT="$(sort -u "$RESULTS" | wc -l | tr -d ' ')"
-    APP_NAMES="$(sort -u "$RESULTS" | awk -F '\t' '$1 == "app" { print $2 }' | paste -sd ',' -)"
+    APP_NAMES="$(
+        sort -u "$RESULTS" |
+            awk -F '\t' '$1 == "app" { print $3 }' |
+            while IFS= read -r APP_PATH; do
+                display_item_for_app "$APP_PATH"
+            done |
+            sort -u |
+            paste -sd ',' -
+    )"
 
     if [ -z "$APP_NAMES" ]; then
         APP_NAMES="none"
     fi
 
-    printf 'intel_only_count=%s;intel_only_apps=%s\n' "$COUNT" "$APP_NAMES"
+    COUNT="$(printf '%s\n' "$APP_NAMES" | awk -F ',' '{ if ($0 == "none") print 0; else print NF }')"
+
+    printf '%s;apps=%s\n' "$COUNT" "$APP_NAMES"
 }
 
 if [ "$CUSTOM_PATHS" -eq 1 ]; then

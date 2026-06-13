@@ -4,7 +4,17 @@
 
 set -u
 
-RESULTS="$(mktemp "${TMPDIR:-/tmp}/simplemdm_intel_inventory.XXXXXX")"
+make_temp_file() {
+    TEMP_ROOT="${TMPDIR:-/tmp}"
+
+    if [ ! -d "$TEMP_ROOT" ] || [ ! -w "$TEMP_ROOT" ]; then
+        TEMP_ROOT="/tmp"
+    fi
+
+    mktemp "$TEMP_ROOT/simplemdm_intel_inventory.XXXXXX"
+}
+
+RESULTS="$(make_temp_file)"
 trap 'rm -f "$RESULTS"' EXIT
 
 APP_SEARCH_PATHS=(

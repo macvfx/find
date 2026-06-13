@@ -13,6 +13,7 @@
 8. **mk1R3Dthumbnails.sh** Make ONLY 1 image thumbnail from the r3d files found in a given RDC directory.
 9. **find build folders** Scans for hidden .build folders created by Swift Package Manager (SPM), reports sizes/locations, exports a report and CSV, then clean and archive as a password-protected zip.
 10. **find Xcode projects cleanup** Scans for Xcode projects, runs xcodebuild clean, removes DerivedData, and optionally creates a zip archive with flexible password options.
+11. **intel_inventory.sh** Finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. Includes SSH, CSV, and SimpleMDM custom attribute workflows. See `intel_inventory_README.md`.
 
 ## Notes
 

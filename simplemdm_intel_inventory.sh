@@ -1,0 +1,61 @@
+#!/bin/bash
+# SimpleMDM-IntelInventory.sh
+# One-line Intel-only app inventory for SimpleMDM Auto Attributes.
+
+set -u
+
+RESULTS="$(mktemp "${TMPDIR:-/tmp}/simplemdm_intel_inventory.XXXXXX")"
+trap 'rm -f "$RESULTS"' EXIT
+
+APP_SEARCH_PATHS=(
+    "/Applications"
+    "/Applications/Utilities"
+)
+
+is_intel_only_macho() {
+    TARGET="$1"
+    INFO="$(file "$TARGET" 2>/dev/null)"
+
+    echo "$INFO" | grep -q "Mach-O" || return 1
+    echo "$INFO" | grep -q "x86_64" || return 1
+    echo "$INFO" | grep -q "arm64" && return 1
+
+    return 0
+}
+
+app_executable_path() {
+    APP="$1"
+    PLIST="$APP/Contents/Info.plist"
+    [ -f "$PLIST" ] || return 1
+
+    EXEC_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$PLIST" 2>/dev/null)"
+    [ -n "$EXEC_NAME" ] || return 1
+
+    EXEC_PATH="$APP/Contents/MacOS/$EXEC_NAME"
+    [ -f "$EXEC_PATH" ] || return 1
+
+    printf '%s\n' "$EXEC_PATH"
+}
+
+for DIR in "${APP_SEARCH_PATHS[@]}"; do
+    [ -d "$DIR" ] || continue
+
+    find "$DIR" -name "*.app" -type d -prune -print0 2>/dev/null |
+        while IFS= read -r -d '' APP; do
+            EXEC_PATH="$(app_executable_path "$APP" || true)"
+            [ -n "$EXEC_PATH" ] || continue
+
+            if is_intel_only_macho "$EXEC_PATH"; then
+                basename "$APP" .app >> "$RESULTS"
+            fi
+        done
+done
+
+COUNT="$(sort -u "$RESULTS" | wc -l | tr -d ' ')"
+APP_NAMES="$(sort -u "$RESULTS" | paste -sd ',' -)"
+
+if [ -z "$APP_NAMES" ]; then
+    APP_NAMES="none"
+fi
+
+printf 'intel_only_count=%s;intel_only_apps=%s\n' "$COUNT" "$APP_NAMES"

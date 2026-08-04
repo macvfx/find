@@ -7,6 +7,12 @@ This folder contains interactive and automation-friendly cleanup scripts for:
 - Xcode `DerivedData` cache cleanup
 - Optional password-protected project archives (`zip`)
 
+## GUI App
+
+Prefer a point-and-click version? **CodeProjectBackup** is a macOS menu bar app built around these scripts — scan, clean, and create password-protected zip archives on a schedule.
+
+<https://github.com/macvfx/CodeCleanUp>
+
 ## Which Script To Use
 
 ### `find_build_folders.sh`

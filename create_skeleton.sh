@@ -10,7 +10,7 @@ MAX_DEPTH=""
 
 usage() {
     cat <<'EOF'
-Usage: create_skeleton_v2.sh [options] <source_folder> <destination> [max_depth]
+Usage: create_skeleton.sh [options] <source_folder> <destination> [max_depth]
 
 Copy the source folder's directory hierarchy to a destination, without files.
 The destination itself represents the source root folder.
@@ -22,9 +22,9 @@ Options:
   -h, --help             Show this help
 
 Examples:
-  create_skeleton_v2.sh "/Volumes/Media/Project" "/tmp/Project Skeleton"
-  create_skeleton_v2.sh --depth 3 source destination
-  create_skeleton_v2.sh --mode zip source "/tmp/Project Skeleton.zip"
+  create_skeleton.sh "/Volumes/Media/Project" "/tmp/Project Skeleton"
+  create_skeleton.sh --depth 3 source destination
+  create_skeleton.sh --mode zip source "/tmp/Project Skeleton.zip"
 EOF
 }
 

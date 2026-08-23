@@ -1,6 +1,6 @@
 # Create Skeleton Folder
 
-`create_skeleton_v2.sh` recreates a source folder's directory hierarchy without
+`create_skeleton.sh` recreates a source folder's directory hierarchy without
 copying any files. It is useful for preparing an empty project template,
 reviewing a directory layout, or sharing a folder structure without its
 contents.
@@ -26,7 +26,7 @@ The destination folder itself represents the source root. For example, if the
 source contains `Editorial/Audio`, this command:
 
 ```bash
-./create_skeleton_v2.sh source "Example Project Skeleton"
+./create_skeleton.sh source "Example Project Skeleton"
 ```
 
 creates:
@@ -49,19 +49,19 @@ The script is directly executable on macOS. From this folder, confirm its
 permissions if necessary:
 
 ```bash
-chmod +x create_skeleton_v2.sh
+chmod +x create_skeleton.sh
 ```
 
 ## Usage
 
 ```text
-create_skeleton_v2.sh [options] <source_folder> <destination> [max_depth]
+create_skeleton.sh [options] <source_folder> <destination> [max_depth]
 ```
 
 The simplest form copies every subfolder:
 
 ```bash
-./create_skeleton_v2.sh \
+./create_skeleton.sh \
   "/Users/example/Example_Project" \
   "/Users/example/Example_Project_Skeleton"
 ```
@@ -69,7 +69,7 @@ The simplest form copies every subfolder:
 Paths containing spaces must be quoted. Run the built-in help at any time:
 
 ```bash
-./create_skeleton_v2.sh --help
+./create_skeleton.sh --help
 ```
 
 ## Options
@@ -93,7 +93,7 @@ For compatibility, depth can also be supplied as the third positional
 argument:
 
 ```bash
-./create_skeleton_v2.sh source destination 3
+./create_skeleton.sh source destination 3
 ```
 
 Do not use both `--depth` and the positional depth argument in the same
@@ -104,7 +104,7 @@ command.
 ### Create a complete empty folder tree
 
 ```bash
-./create_skeleton_v2.sh \
+./create_skeleton.sh \
   "/Users/example/Example_Project" \
   "/Users/example/Example_Project_Skeleton"
 ```
@@ -122,7 +122,7 @@ Workflow:
 This example includes only the first three levels below the source root:
 
 ```bash
-./create_skeleton_v2.sh --depth 3 \
+./create_skeleton.sh --depth 3 \
   "/Users/example/Example_Project" \
   "/Users/example/Example_Project_Skeleton"
 ```
@@ -130,7 +130,7 @@ This example includes only the first three levels below the source root:
 ### Create a ZIP archive
 
 ```bash
-./create_skeleton_v2.sh --mode zip \
+./create_skeleton.sh --mode zip \
   "/Users/example/Example_Project" \
   "/Users/example/Example_Project_Skeleton.zip"
 ```
@@ -142,7 +142,7 @@ archive contains one top-level directory named after the ZIP file. For example,
 ### Use a path beginning with a hyphen
 
 ```bash
-./create_skeleton_v2.sh -- "-example-source" "-example-destination"
+./create_skeleton.sh -- "-example-source" "-example-destination"
 ```
 
 ## How the script works

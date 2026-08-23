@@ -14,7 +14,7 @@
 9. **find build folders** Scans for hidden .build folders created by Swift Package Manager (SPM), reports sizes/locations, exports a report and CSV, then clean and archive as a password-protected zip.
 10. **find Xcode projects cleanup** Scans for Xcode projects, runs xcodebuild clean, removes DerivedData, and optionally creates a zip archive with flexible password options.
 11. **intel_inventory.sh** Finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. Includes SSH, CSV, and SimpleMDM custom attribute workflows. See `intel_inventory_README.md`.
-12. **[create_skeleton_v2.sh](create_skeleton_v2.sh)** Recreates a source folder's complete directory hierarchy without copying files. Supports depth limits and ZIP output. See [create_skeleton_v2_README.md](create_skeleton_v2_README.md).
+12. **[create_skeleton.sh](create_skeleton.sh)** Recreates a source folder's complete directory hierarchy without copying files. Supports depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).
 
 ## Notes
 

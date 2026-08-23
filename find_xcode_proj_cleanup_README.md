@@ -95,16 +95,16 @@ For project archiving:
 
 ### 1) Clean SwiftPM `.build` folders only (no archive)
 ```bash
-bash "find_build_folders.sh" --yes-clean --no-archive "~/Downloads/All Code Projects"
+bash "find_build_folders.sh" --yes-clean --no-archive ~/Code
 ```
 
 ### 2) Clean SwiftPM `.build` and create zip non-interactively (advanced)
 ```bash
 bash "find_build_folders.sh" \
   --yes-all \
-  --zip-path "~/Downloads/project_archive.zip" \
-  --zip-password "REDACTED" \
-  "~/Downloads/All Code Projects/P5 Archive Swift Apps"
+  --zip-path ~/Downloads/Example_Project.zip \
+  --zip-password "<password>" \
+  ~/Code/Example_Project
 ```
 
 Notes:
@@ -117,36 +117,36 @@ Notes:
 
 ### 3) Xcode cleanup (run `xcodebuild clean`, remove DerivedData)
 ```bash
-bash "find_xcode_projects_cleanup.sh" --yes-all "~/Downloads/All Code Projects"
+bash "find_xcode_projects_cleanup.sh" --yes-all ~/Code
 ```
 
 ### 4) Xcode cleanup without archive
 ```bash
-bash "find_xcode_projects_cleanup.sh" --yes-clean --yes-deriveddata --no-archive "~/Downloads/All Code Projects"
+bash "find_xcode_projects_cleanup.sh" --yes-clean --yes-deriveddata --no-archive ~/Code
 ```
 
 ### 5) Xcode report-only mode (no changes)
 ```bash
-bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata "~/Downloads/All Code Projects"
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata ~/Code
 ```
 
 ### 6) Fully unattended — clean + unencrypted archive
 ```bash
-bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password "~/Downloads/All Code Projects"
+bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password ~/Code
 ```
 
 ### 7) Fully unattended — clean + archive with Keychain password
 ```bash
-bash "find_xcode_projects_cleanup.sh" --yes-all --zip-password-keychain "~/Downloads/All Code Projects"
+bash "find_xcode_projects_cleanup.sh" --yes-all --zip-password-keychain ~/Code
 ```
 On first run you'll be prompted once; the password is saved to macOS Keychain and reused automatically on future runs.
 
 ### 8) Archive to a custom folder (auto-named with timestamp)
 ```bash
 bash "find_xcode_projects_cleanup.sh" --yes-all --no-zip-password \
-  --zip-path ~/Dropbox/ "~/Downloads/All Code Projects"
+  --zip-path ~/Archives/ ~/Code
 ```
-If `--zip-path` points to a directory, the script auto-names the file (e.g. `All_Code_Projects_2026-06-04_12-30-00.zip`). Pass a full file path instead to choose the exact name.
+If `--zip-path` points to a directory, the script auto-names the file (e.g. `Code_2026-06-04_12-30-00.zip`). Pass a full file path instead to choose the exact name.
 
 ## Space Saved Estimates
 
@@ -180,7 +180,7 @@ Default report destination:
 
 You can override with the second positional argument:
 ```bash
-bash "find_xcode_projects_cleanup.sh" "/path/to/scan" "/path/to/reports"
+bash "find_xcode_projects_cleanup.sh" ~/Code ~/Documents/Reports
 ```
 
 ## Safety Notes

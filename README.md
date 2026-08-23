@@ -3,18 +3,19 @@
 
 ### Examples of Unix Find scripts
 
-1. **add-rm-header.sh** Add or remove a header. Defaults to shell files. File type and path and dry-run or rm can be specified. See below.
-2. **filename-check** Find files with file names greater than 140 characters.
-3. **filename-check-n-move** Find files with file names greater than 140 characters and move them into archive
-4. **findspace-confirm.sh** Find the trailing space, log, and ask to confirm the changes before making any.
-5. **find-trailing-space-replace.sh** Find directories with trailing space and rename them.
-6. **find-photos-sort.sh** Find photos, get creation date using stat command, make folders and sort.
-7. **find-mdls-exif.sh** Find photos, get the creation date from EXIF data, make folders and sort.
-8. **mk1R3Dthumbnails.sh** Make ONLY 1 image thumbnail from the r3d files found in a given RDC directory.
-9. **find build folders** Scans for hidden .build folders created by Swift Package Manager (SPM), reports sizes/locations, exports a report and CSV, then clean and archive as a password-protected zip.
-10. **find Xcode projects cleanup** Scans for Xcode projects, runs xcodebuild clean, removes DerivedData, and optionally creates a zip archive with flexible password options.
-11. **intel_inventory.sh** Finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. Includes SSH, CSV, and SimpleMDM custom attribute workflows. See `intel_inventory_README.md`.
-12. **[create_skeleton.sh](create_skeleton.sh)** Recreates a source folder's complete directory hierarchy without copying files. Supports depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).
+1. **[add-rm-header.sh](add-rm-header.sh)** adds or removes an exact header line in matching files, with dry-run support. See the [notes below](#add-or-remove-headers-script-notes).
+2. **[filename-check.sh](filename-check.sh)** reports filenames longer than 140 characters.
+3. **[filename-check-n-move.sh](filename-check-n-move.sh)** logs filenames longer than 140 characters and can move them into a dated folder and archive it.
+4. **[findspace-confirm.sh](findspace-confirm.sh)** finds directory names with trailing spaces, shows them, and asks before renaming them.
+5. **[find-trailing-space-replace.sh](find-trailing-space-replace.sh)** finds and renames directory names with trailing whitespace without prompting.
+6. **[find-photos-sort.sh](find-photos-sort.sh)** copies JPEG and PNG files into folders based on their filesystem creation dates.
+7. **[find-mdls-exif-sort.sh](find-mdls-exif-sort.sh)** copies JPEG and PNG files into folders based on Spotlight content-creation metadata.
+8. **[mk1R3Dthumbnail.sh](mk1R3Dthumbnail.sh)** uses REDline to create JPEG thumbnails from R3D media, with dry-run and verbose modes.
+9. **[find_build_folders.sh](find_build_folders.sh)** scans for SwiftPM `.build` folders, creates reports, and offers cleanup and archive workflows. See [find_build_folders_README.md](find_build_folders_README.md).
+10. **[find_xcode_projects_cleanup.sh](find_xcode_projects_cleanup.sh)** scans Xcode projects, cleans build artifacts, removes matching DerivedData, and can create an archive. See [find_xcode_proj_cleanup_README.md](find_xcode_proj_cleanup_README.md).
+11. **[intel_inventory.sh](intel_inventory.sh)** finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. See [intel_inventory_README.md](intel_inventory_README.md).
+12. **[simplemdm_intel_inventory.sh](simplemdm_intel_inventory.sh)** emits compact Intel-only inventory for a SimpleMDM custom attribute. See [intel_inventory_README.md](intel_inventory_README.md#simplemdm-custom-attribute).
+13. **[create_skeleton.sh](create_skeleton.sh)** recreates a source folder's complete directory hierarchy without copying files, with depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).
 
 ## Notes
 

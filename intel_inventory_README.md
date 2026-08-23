@@ -55,19 +55,19 @@ Capture that targeted scan as CSV:
 Run the script on a remote Mac and save the CSV locally:
 
 ```bash
-ssh admin@remote-mac 'bash -s -- --format csv' < intel_inventory.sh > remote-mac-intel-apps.csv
+ssh editor@example.com 'bash -s -- --format csv' < intel_inventory.sh > example-mac-intel-apps.csv
 ```
 
 Run a targeted scan over SSH:
 
 ```bash
-ssh admin@remote-mac 'bash -s -- --path /usr/local/bin --path /opt/homebrew/bin --path /opt/local/bin --format csv' < intel_inventory.sh > remote-mac-intel-package-bins.csv
+ssh editor@example.com 'bash -s -- --path /usr/local/bin --path /opt/homebrew/bin --path /opt/local/bin --format csv' < intel_inventory.sh > example-mac-intel-package-bins.csv
 ```
 
 Run the script on a remote Mac and show the readable list in your Terminal:
 
 ```bash
-ssh admin@remote-mac 'bash -s' < intel_inventory.sh
+ssh editor@example.com 'bash -s' < intel_inventory.sh
 ```
 
 ## MDM-Style Custom Attribute Output

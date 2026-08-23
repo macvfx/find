@@ -29,10 +29,10 @@ bash find_build_folders.sh -h | --help
 bash find_build_folders.sh
 
 # Scan a specific projects folder
-bash find_build_folders.sh ~/Developer
+bash find_build_folders.sh ~/Code
 
 # Scan a path with spaces, save reports to Documents
-bash find_build_folders.sh "/Users/dev/Downloads/All Code Projects" ~/Documents
+bash find_build_folders.sh "$HOME/Example Code" ~/Documents
 
 # Show help
 bash find_build_folders.sh --help
@@ -56,12 +56,12 @@ Aligned table of every `.build` folder found with its size and full path, plus a
 ```
 .build Folder Report
 Generated : Sun Feb 22 21:42:48 PST 2026
-Root      : /Users/dev/Downloads/All Code Projects
+Root      : ~/Code
 ========================================
 
-  90.6 MB     /Users/dev/.../Media Conversion/.build
-  48.7 MB     /Users/dev/.../P5MediaCore/.build
-  4 KB        /Users/dev/.../P5ExportCore/.build
+  90.6 MB     ~/Code/Example_App/.build
+  48.7 MB     ~/Code/Example_Package/.build
+  4 KB        ~/Code/Example_Tool/.build
 
 ----------------------------------------
   Folders found : 3
@@ -77,8 +77,8 @@ Importable directly into Excel, Numbers, or Google Sheets.
 |---|---|---|
 | `Size` | `90.6 MB` | Human-readable size |
 | `Size_KB` | `92774` | Raw size in kilobytes for sorting/math |
-| `Path` | `/Users/.../Media Conversion/.build` | Full path to the `.build` folder |
-| `Parent_Project` | `Media Conversion` | Name of the containing project folder |
+| `Path` | `~/Code/Example_App/.build` | Full path to the `.build` folder |
+| `Parent_Project` | `Example_App` | Name of the containing project folder |
 | *(final row)* | `TOTAL` | Grand total KB and folder count |
 
 ---
@@ -106,9 +106,9 @@ For each `.build` folder found:
 
   Proceed? [y/N]
 
-  Media Conversion              ✓ cleaned  (freed 90.6 MB)
-  P5MediaCore                    ✓ cleaned  (freed 48.7 MB)
-  P5ExportCore                    ✓ cleaned  (freed 4 KB)
+  Example_App                   ✓ cleaned  (freed 90.6 MB)
+  Example_Package               ✓ cleaned  (freed 48.7 MB)
+  Example_Tool                  ✓ cleaned  (freed 4 KB)
 
   Total freed : 139.3 MB
 ```
@@ -128,13 +128,13 @@ Creates an encrypted zip of the entire `SEARCH_ROOT` folder.
   Archive Projects Folder
 ==============================================
   Create a password-protected zip of:
-  /Users/dev/Downloads/Code
+  ~/Code
   Archive path [~/Downloads/Code_2026-02-22.zip]:
   Proceed with archive? [y/N]
 
   Enter zip password (input hidden):
-  Password     : ········
-  Confirm      : ········
+  Password input accepted (hidden)
+  Confirmation accepted (hidden)
 
   Zipping... (this may take a while for large folders)
 

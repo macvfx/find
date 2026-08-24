@@ -16,6 +16,7 @@
 11. **[intel_inventory.sh](intel_inventory.sh)** finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. See [intel_inventory_README.md](intel_inventory_README.md).
 12. **[simplemdm_intel_inventory.sh](simplemdm_intel_inventory.sh)** emits compact Intel-only inventory for a SimpleMDM custom attribute. See [intel_inventory_README.md](intel_inventory_README.md#simplemdm-custom-attribute).
 13. **[create_skeleton.sh](create_skeleton.sh)** recreates a source folder's complete directory hierarchy without copying files, with depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).
+14. **[find_folder_subdirectories.sh](find_folder_subdirectories.sh)** finds every directory with an exact name, lists only the descendant directories within each occurrence, and counts each unique descendant name. See [find_folder_subdirectories_README.md](find_folder_subdirectories_README.md).
 
 ## Notes
 
@@ -23,6 +24,7 @@
 - Find photos scripts: get creation date using stat command, make folders and sort or get the creation date from EXIF data, make folders and sort
 - Find all R3D files and make ONLY 1 image thumbnail from the r3d files found in a given RDC directory. Requires REDline
 - Create an empty copy of a directory hierarchy for templates, layout review, or structure-only sharing. Hidden directories are included; files and symbolic links are excluded.
+- Find repeated folders by exact name, inspect all directory types below them, and count repeated descendant names without listing files.
 
 ## Add or Remove Headers Script Notes
 

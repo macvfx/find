@@ -795,7 +795,7 @@ echo "  Excludes: .build, DerivedData, xcuserdata, Pods, Carthage/Build,"
 echo "            SourcePackages, .swiftpm, .dSYM, .app bundles, Index,"
 echo "            ModuleCache, Build products/intermediates, node_modules,"
 echo "            .DS_Store, __MACOSX, CompilationCache, precompiled-module caches,"
-echo "            .claude/worktrees, .venv*, __pycache__, detected Xcode build folders"
+echo "            .claude/worktrees, .venv*, __pycache__, P5 container blocks (*.p5b), detected Xcode build folders"
 echo ""
 
 SEARCH_ROOT_ABS=$(cd "$SEARCH_ROOT" 2>/dev/null && pwd || echo "$SEARCH_ROOT")
@@ -980,7 +980,8 @@ if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
     -x "*/.claude/worktrees/*" \
     -x "*/.venv/*" \
     -x "*/.venv-*/*" \
-    -x "*/__pycache__/*"; then
+    -x "*/__pycache__/*" \
+    -x "*.p5b"; then
     zip_size_kb=$(safe_du_kb "$ZIP_PATH")
     zip_size_human=$(human_readable_kb "$zip_size_kb")
     echo ""

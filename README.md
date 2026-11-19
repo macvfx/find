@@ -17,6 +17,10 @@
 12. **[simplemdm_intel_inventory.sh](simplemdm_intel_inventory.sh)** emits compact Intel-only inventory for a SimpleMDM custom attribute. See [intel_inventory_README.md](intel_inventory_README.md#simplemdm-custom-attribute).
 13. **[create_skeleton.sh](create_skeleton.sh)** recreates a source folder's complete directory hierarchy without copying files, with depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).
 14. **[find_folder_subdirectories.sh](find_folder_subdirectories.sh)** finds every directory with an exact name, lists only the descendant directories within each occurrence, and counts each unique descendant name. See [find_folder_subdirectories_README.md](find_folder_subdirectories_README.md).
+15. **[find-file-ext-total.sh](find-file-ext-total.sh)** counts files and adds up their real sizes for a list of extensions (default `mov mp4 mxf wav mp3`, any case) under a folder, and writes a timestamped log. See the [notes below](#file-type-counting-scripts-notes).
+16. **[find-file-ext-by-year.sh](find-file-ext-by-year.sh)** does the same per year folder (for example `2021-2024`) and writes a CSV.
+17. **[file-type-count2csv-EachSubFolder.sh](file-type-count2csv-EachSubFolder.sh)** counts one extension inside each top-level folder of a path and writes a CSV.
+18. **[file-type-count2csv-and-du-EachSubFolder.sh](file-type-count2csv-and-du-EachSubFolder.sh)** counts one extension and measures the total size of every folder two levels down (`path/year/project`), and writes a CSV.
 
 ## Notes
 
@@ -35,3 +39,12 @@
 - Preserves timestamps
 - Supports dry-run
 - Colored output, counters, recursive search, custom file pattern/path
+
+## File Type Counting Scripts Notes
+
+- All four are read-only on the folders they scan; they only write a log or CSV.
+- Extension matching ignores case (`.mov` and `.MOV`) and a leading dot is accepted. Extensions may contain only letters, digits, `_`, `+` and `-`.
+- Sizes are real file sizes in GB (1 GB = 1,000,000,000 bytes, as Finder shows), not `du -g`, which rounds every file or folder up to a whole GB and so overstates many small files.
+- Names with commas, quotes or even newlines are counted correctly and quoted in the CSV.
+- The two `file-type-count2csv-*` scripts write to a new private folder under `$TMPDIR`. Add `--share` to also copy the CSV to `/Users/Shared/<volume>_<extension>/`.
+- They use macOS `stat -f` and `open`, so they are written for macOS.

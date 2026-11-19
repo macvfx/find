@@ -113,7 +113,10 @@ Notes:
 - `--no-zip-password` skips encryption entirely (fastest, fully non-interactive)
 - `--zip-password`, `--no-zip-password`, and `--zip-password-keychain` are mutually exclusive
 - The interactive password prompt allows up to 3 retry attempts on mismatch
-- The archive step excludes `.build`, `DerivedData`, `xcuserdata`, `Pods`, `Carthage/Build`, `.swiftpm`, `SourcePackages`, `.dSYM`, `.app` bundles, index/module caches, build products/intermediates, `node_modules`, `.DS_Store`, and `__MACOSX` by default
+- The archive step excludes `.build`, `DerivedData`, `xcuserdata`, `Pods`, `Carthage/Build`, `.swiftpm`, `SourcePackages`, `.dSYM`, `.app` bundles, index/module caches, build products/intermediates, `node_modules`, `.DS_Store`, and `__MACOSX` by default, plus `CompilationCache.noindex`, the precompiled-module caches (`SwiftExplicitPrecompiledModules`, `SDKExplicitPrecompiledModules`, `SDKStatCaches.noindex`), `XCBuildData`, `.claude/worktrees`, `.venv*`, `__pycache__`, and every Xcode build folder the scan found
+- `CompilationCache.noindex` can hold a sparse file that reports tens of GB, which `zip` would read in full, so it is excluded
+- Credential files (`signing.env`, `.sentryclirc`, `.env`, `.p12`, `.mobileprovision`, SSH keys) are left out automatically when the archive has no password, or always with `--exclude-secrets`
+- With a password, `zip` uses its built-in encryption (ZipCrypto), which is weak, and the password is visible to other local processes while `zip` runs
 
 ### 3) Xcode cleanup (run `xcodebuild clean`, remove DerivedData)
 ```bash
@@ -123,6 +126,16 @@ bash "find_xcode_projects_cleanup.sh" --yes-all ~/Code
 ### 4) Xcode cleanup without archive
 ```bash
 bash "find_xcode_projects_cleanup.sh" --yes-clean --yes-deriveddata --no-archive ~/Code
+```
+
+### 4b) Remove build folders (preview first)
+Removes `.build` and Xcode build-output folders under the search root. Build folders are found by what they contain (`Build/Products`, `CompilationCache.noindex`, and similar), not by name, so `Build`, `BuildPortFix` and `build` are all found. Folders with git-tracked files, or changed in the last hour, are kept. This step is not part of `--yes-all`.
+```bash
+# List what would be removed; deletes nothing
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --preview-build-cleanup ~/Code
+
+# Remove them
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --yes-buildfolders ~/Code
 ```
 
 ### 5) Xcode report-only mode (no changes)

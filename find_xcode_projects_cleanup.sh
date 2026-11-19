@@ -20,7 +20,8 @@ DESCRIPTION
   report and CSV, then interactively offers to:
     1. Run "xcodebuild ... clean" for discovered schemes
     2. Remove matching Xcode DerivedData folders
-    3. Create a password-protected zip archive of SEARCH_ROOT (with cache/build excludes)
+    3. Remove .build and Xcode build-output folders (opt-in; see below)
+    4. Create a password-protected zip archive of SEARCH_ROOT (with cache/build excludes)
 
 ARGUMENTS
   SEARCH_ROOT   (optional) Folder to scan. Defaults to current directory.
@@ -33,6 +34,17 @@ OPTIONS
   --yes-archive      Run archive step without initial proceed prompt.
                      If --zip-password is not provided, password prompts remain.
   --yes-all          Equivalent to: --yes-clean --yes-deriveddata --yes-archive
+  --yes-buildfolders Remove .build folders and Xcode build-output folders under
+                     SEARCH_ROOT without prompting. NOT part of --yes-all.
+                     Folders are found by content (Build/Products,
+                     CompilationCache.noindex, ...), not by name. Folders with
+                     git-tracked files, or changed in the last hour, are kept.
+  --preview-build-cleanup
+                     List what the build-folder step would remove; delete nothing.
+  --no-buildfolders  Skip the build-folder removal step
+  --exclude-secrets  Leave credential files (signing.env, .sentryclirc, .env, .p12,
+                     .mobileprovision, SSH keys) out of the archive. This always
+                     happens when the archive has no password.
   --no-clean         Skip xcodebuild clean step (useful in automation)
   --no-deriveddata   Skip DerivedData removal step
   --no-archive       Skip archive step
@@ -85,6 +97,10 @@ EOF
 AUTO_CLEAN=0
 AUTO_DERIVEDDATA=0
 AUTO_ARCHIVE=0
+AUTO_BUILDFOLDERS=0
+SKIP_BUILDFOLDERS=0
+PREVIEW_BUILDFOLDERS=0
+EXCLUDE_SECRETS=0
 SKIP_CLEAN=0
 SKIP_DERIVEDDATA=0
 SKIP_ARCHIVE=0
@@ -118,6 +134,22 @@ while [[ $# -gt 0 ]]; do
       AUTO_CLEAN=1
       AUTO_DERIVEDDATA=1
       AUTO_ARCHIVE=1
+      shift
+      ;;
+    --yes-buildfolders)
+      AUTO_BUILDFOLDERS=1
+      shift
+      ;;
+    --preview-build-cleanup)
+      PREVIEW_BUILDFOLDERS=1
+      shift
+      ;;
+    --no-buildfolders)
+      SKIP_BUILDFOLDERS=1
+      shift
+      ;;
+    --exclude-secrets)
+      EXCLUDE_SECRETS=1
       shift
       ;;
     --no-clean)
@@ -302,6 +334,56 @@ collect_build_folders() {
   find "${find_args[@]}" 2>/dev/null | grep -v "/.build/.build" | sort
 }
 
+# Xcode build output is recognised by what it contains, not by its name, so
+# "Build", "BuildPortFix" or "build" folders are found and a source folder that
+# only shares the name is not. Prints the topmost root of each build tree.
+collect_xcode_build_roots() {
+  local -a find_args=("$SEARCH_ROOT")
+  for p in "${PRUNE_PATHS[@]}"; do
+    find_args+=( -path "$p" -prune -o )
+  done
+  find_args+=(
+    \( -name .git -o -name node_modules -o -name .build \) -prune -o
+    -type d \( -name CompilationCache.noindex -o -name SwiftExplicitPrecompiledModules
+      -o -name SDKExplicitPrecompiledModules -o -name SDKStatCaches.noindex
+      -o -name XCBuildData -o -name Index.noindex -o -name ModuleCache.noindex
+      -o -name ModuleCache -o -path "*/Build/Products" -o -path "*/Build/Intermediates.noindex" \)
+    -print -prune
+  )
+  local marker root kept
+  local -a roots=() out=()
+  while IFS= read -r marker; do
+    [[ -z "$marker" ]] && continue
+    case "$marker" in
+      */Build/Products|*/Build/Intermediates.noindex) root="$(dirname "$(dirname "$marker")")" ;;
+      *) root="$(dirname "$marker")" ;;
+    esac
+    [[ "$root" == "$SEARCH_ROOT" || "$root" == "${SEARCH_ROOT%/}" ]] && continue
+    roots+=( "$root" )
+  done < <(find "${find_args[@]}" 2>/dev/null)
+  [[ ${#roots[@]} -eq 0 ]] && return 0
+  while IFS= read -r root; do
+    for kept in "${out[@]:-}"; do
+      [[ -n "$kept" && "$root" == "$kept"/* ]] && continue 2
+    done
+    out+=( "$root" )
+  done < <(printf '%s\n' "${roots[@]}" | sort -u)
+  printf '%s\n' "${out[@]}"
+}
+
+# Prints a reason and returns 0 when the folder must be kept, 1 when removable.
+build_folder_keep_reason() {
+  local path="$1" parent name
+  parent="$(dirname "$path")"; name="$(basename "$path")"
+  if [[ -n "$(git -C "$parent" ls-files -- "$name" 2>/dev/null | head -1)" ]]; then
+    echo "contains git-tracked files"; return 0
+  fi
+  if [[ -n "$(find "$path" -maxdepth 0 -mmin -60 2>/dev/null)" ]]; then
+    echo "modified in the last hour"; return 0
+  fi
+  return 1
+}
+
 echo ""
 echo "=============================================="
 echo "  Xcode Project / Workspace Scanner"
@@ -319,6 +401,7 @@ echo ""
 
 mapfile -t CONTAINERS < <(collect_xcode_containers)
 mapfile -t BUILD_FOLDERS < <(collect_build_folders || true)
+mapfile -t XCODE_BUILD_ROOTS < <(collect_xcode_build_roots || true)
 
 if [[ ${#CONTAINERS[@]} -eq 0 ]]; then
   echo "No .xcworkspace or .xcodeproj found under: $SEARCH_ROOT"
@@ -393,6 +476,12 @@ for build_dir in "${BUILD_FOLDERS[@]}"; do
   kb=$(safe_du_kb "$build_dir")
   build_total_kb=$(( build_total_kb + kb ))
 done
+xcode_build_total_kb=0
+for build_dir in "${XCODE_BUILD_ROOTS[@]}"; do
+  [[ -z "$build_dir" ]] && continue
+  kb=$(safe_du_kb "$build_dir")
+  xcode_build_total_kb=$(( xcode_build_total_kb + kb ))
+done
 
 {
   echo "----------------------------------------"
@@ -400,6 +489,7 @@ done
   echo "  Schemes seen : $total_schemes"
   echo "  .build dirs  : ${#BUILD_FOLDERS[@]}"
   echo "  .build size  : $(human_readable_kb "$build_total_kb")"
+  echo "  Xcode build folders : ${#XCODE_BUILD_ROOTS[@]} ($(human_readable_kb "$xcode_build_total_kb"))"
   echo "  Scanned      : $(date)"
   echo "----------------------------------------"
 } | tee -a "$REPORT_FILE"
@@ -626,6 +716,70 @@ else
 fi
 
 # =============================================================================
+# STEP 3b — Remove .build and Xcode build-output folders (opt-in)
+# =============================================================================
+echo "=============================================="
+echo "  Build Folder Cleanup"
+echo "=============================================="
+
+declare -a BUILD_REMOVE=()
+declare -a BUILD_KEPT=()
+for d in "${BUILD_FOLDERS[@]}" "${XCODE_BUILD_ROOTS[@]}"; do
+  [[ -z "$d" ]] && continue
+  [[ "$d" == "$SEARCH_ROOT"/* || "$d" == "${SEARCH_ROOT%/}"/* ]] || continue
+  if reason=$(build_folder_keep_reason "$d"); then
+    BUILD_KEPT+=( "$d  [kept: $reason]" )
+  else
+    BUILD_REMOVE+=( "$d" )
+  fi
+done
+
+bf_total_kb=0
+for d in "${BUILD_REMOVE[@]:-}"; do
+  [[ -z "$d" ]] && continue
+  kb=$(safe_du_kb "$d")
+  bf_total_kb=$(( bf_total_kb + kb ))
+  printf "  - %-10s %s\n" "$(human_readable_kb "$kb")" "$d"
+done
+for d in "${BUILD_KEPT[@]:-}"; do
+  [[ -n "$d" ]] && echo "  - kept     $d"
+done
+echo "  Removable: ${#BUILD_REMOVE[@]} folder(s), $(human_readable_kb "$bf_total_kb")"
+echo ""
+
+if [[ $PREVIEW_BUILDFOLDERS -eq 1 ]]; then
+  BF_CONFIRM="n"
+  echo "  Preview only (--preview-build-cleanup) — nothing deleted."
+elif [[ $SKIP_BUILDFOLDERS -eq 1 || ${#BUILD_REMOVE[@]} -eq 0 ]]; then
+  BF_CONFIRM="n"
+elif [[ $AUTO_BUILDFOLDERS -eq 1 ]]; then
+  BF_CONFIRM="y"
+  echo "  Auto mode enabled (--yes-buildfolders) — proceeding."
+else
+  printf "  Remove these build folders? [y/N] "
+  read -r BF_CONFIRM || true
+fi
+
+if [[ "$BF_CONFIRM" =~ ^[Yy]$ ]]; then
+  bf_removed_kb=0; bf_fail=0
+  for d in "${BUILD_REMOVE[@]}"; do
+    kb=$(safe_du_kb "$d")
+    if rm -rf "$d"; then
+      bf_removed_kb=$(( bf_removed_kb + kb ))
+      printf "  ✓ Removed %-10s %s\n" "$(human_readable_kb "$kb")" "$d"
+    else
+      (( bf_fail++ )) || true
+      echo "  ✗ Failed to remove $d"
+    fi
+  done
+  echo ""
+  echo "  Build folder summary: removed $(human_readable_kb "$bf_removed_kb"), failed $bf_fail"
+else
+  echo "  Skipped — no build folders removed."
+fi
+echo ""
+
+# =============================================================================
 # STEP 4 — Offer password-protected zip archive of SEARCH_ROOT
 # =============================================================================
 echo "=============================================="
@@ -640,7 +794,8 @@ echo "  $SEARCH_ROOT"
 echo "  Excludes: .build, DerivedData, xcuserdata, Pods, Carthage/Build,"
 echo "            SourcePackages, .swiftpm, .dSYM, .app bundles, Index,"
 echo "            ModuleCache, Build products/intermediates, node_modules,"
-echo "            .DS_Store, __MACOSX"
+echo "            .DS_Store, __MACOSX, CompilationCache, precompiled-module caches,"
+echo "            .claude/worktrees, .venv*, __pycache__, detected Xcode build folders"
 echo ""
 
 SEARCH_ROOT_ABS=$(cd "$SEARCH_ROOT" 2>/dev/null && pwd || echo "$SEARCH_ROOT")
@@ -774,7 +929,31 @@ if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
     ZIP_CMD+=(-P "$ZIP_PASS")
   fi
 
+  # Patterns for the exact Xcode build trees found by the scan (precise: a source
+  # folder that merely shares a name is never dropped). zip -x treats [ ] ? * as
+  # wildcards, so a literal path escapes them.
+  declare -a DYN_EXCLUDES=()
+  for d in "${XCODE_BUILD_ROOTS[@]:-}"; do
+    [[ -z "$d" ]] && continue
+    if [[ -z "$(git -C "$(dirname "$d")" ls-files -- "$(basename "$d")" 2>/dev/null | head -1)" ]]; then
+      esc="${d//\\/\\\\}"; esc="${esc//\[/\\[}"; esc="${esc//\]/\\]}"; esc="${esc//\?/\\?}"; esc="${esc//\*/\\*}"
+      DYN_EXCLUDES+=( -x "$esc/*" )
+    fi
+  done
+  # Credential files are left out whenever the archive is unencrypted.
+  declare -a SECRET_EXCLUDES=()
+  if [[ $EXCLUDE_SECRETS -eq 1 || -z "$ZIP_PASS" ]]; then
+    echo "  Credential files will be left out of the archive."
+    SECRET_EXCLUDES=( -x "*/signing.env" -x "*/.sentryclirc" -x "*/.env" -x "*/.env.local"
+      -x "*/.env.production" -x "*/*.p12" -x "*/*.mobileprovision" -x "*/id_rsa" -x "*/id_ed25519" )
+  fi
+  if [[ -n "$ZIP_PASS" ]]; then
+    echo "  Note: zip's built-in encryption (ZipCrypto) is weak and the password is visible"
+    echo "        to other local processes while zip runs. Keep the archive on trusted storage."
+  fi
+
   if "${ZIP_CMD[@]}" "$ZIP_PATH" "$SEARCH_ROOT" \
+    "${DYN_EXCLUDES[@]:-}" "${SECRET_EXCLUDES[@]:-}" \
     -x "*.DS_Store" \
     -x "*/__MACOSX/*" \
     -x "*/.build/*" \
@@ -792,7 +971,16 @@ if [[ "$ZIP_CONFIRM" =~ ^[Yy]$ ]]; then
     -x "*/Logs/Build/*" \
     -x "*/*.dSYM/*" \
     -x "*/*.app/*" \
-    -x "*/node_modules/*"; then
+    -x "*/node_modules/*" \
+    -x "*/CompilationCache.noindex/*" \
+    -x "*/SwiftExplicitPrecompiledModules/*" \
+    -x "*/SDKExplicitPrecompiledModules/*" \
+    -x "*/SDKStatCaches.noindex/*" \
+    -x "*/XCBuildData/*" \
+    -x "*/.claude/worktrees/*" \
+    -x "*/.venv/*" \
+    -x "*/.venv-*/*" \
+    -x "*/__pycache__/*"; then
     zip_size_kb=$(safe_du_kb "$ZIP_PATH")
     zip_size_human=$(human_readable_kb "$zip_size_kb")
     echo ""

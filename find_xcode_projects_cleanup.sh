@@ -2,7 +2,9 @@
 # =============================================================================
 # find_xcode_projects_cleanup.sh
 # Scans for Xcode workspaces/projects, reports schemes, offers xcodebuild clean,
-# and optionally removes matching DerivedData folders.
+# and optionally removes matching DerivedData folders. With --dev-tools it can
+# also clear old Xcode archives, device support, caches and unavailable
+# simulators by calling dev_space_cleanup.sh (kept in the same folder).
 # =============================================================================
 
 set -euo pipefail
@@ -21,7 +23,9 @@ DESCRIPTION
     1. Run "xcodebuild ... clean" for discovered schemes
     2. Remove matching Xcode DerivedData folders
     3. Remove .build and Xcode build-output folders (opt-in; see below)
-    4. Create a password-protected zip archive of SEARCH_ROOT (with cache/build excludes)
+    4. Clear old Xcode archives, device support, caches and unavailable simulators
+       (opt-in with --dev-tools; runs dev_space_cleanup.sh, see below)
+    5. Create a password-protected zip archive of SEARCH_ROOT (with cache/build excludes)
 
 ARGUMENTS
   SEARCH_ROOT   (optional) Folder to scan. Defaults to current directory.
@@ -42,6 +46,21 @@ OPTIONS
   --preview-build-cleanup
                      List what the build-folder step would remove; delete nothing.
   --no-buildfolders  Skip the build-folder removal step
+  --dev-tools        After the build-folder step, offer to clear Xcode leftovers
+                     outside SEARCH_ROOT by running dev_space_cleanup.sh from this
+                     script's folder: old .xcarchive bundles (the newest of each
+                     app is always kept), old device support, Xcode and SwiftPM
+                     caches, unavailable simulators. Asks per category and moves
+                     items to the Trash. DerivedData is left to step 2 unless you
+                     name it with --dev-tools-only.
+  --yes-devtools     Same, without the questions (implies --dev-tools). NOT part
+                     of --yes-all.
+  --preview-dev-tools
+                     List what --dev-tools would do; move nothing.
+  --dev-tools-days N Archive age in days for --dev-tools (default 60).
+  --dev-tools-only LIST
+                     Limit --dev-tools to categories: archives, devsupport,
+                     derived, caches, simulators (comma-separated).
   --exclude-secrets  Leave credential files (signing.env, .sentryclirc, .env, .p12,
                      .mobileprovision, SSH keys) out of the archive. This always
                      happens when the archive has no password.
@@ -86,6 +105,9 @@ EXAMPLES
   # Use macOS Keychain for the zip password (prompts once, remembers for next time)
   bash find_xcode_projects_cleanup.sh --yes-all --zip-password-keychain "$HOME/Developer"
 
+  # Also clear old Xcode archives, device support and caches (asks first)
+  bash find_xcode_projects_cleanup.sh --dev-tools "$HOME/Developer"
+
   # Typical summary output (example)
   #   Estimated recoverable (.build)         : 1.8 GB
   #   Estimated recoverable (DerivedData)    : 6.4 GB
@@ -101,6 +123,11 @@ AUTO_BUILDFOLDERS=0
 SKIP_BUILDFOLDERS=0
 PREVIEW_BUILDFOLDERS=0
 EXCLUDE_SECRETS=0
+DEV_TOOLS=0
+AUTO_DEVTOOLS=0
+PREVIEW_DEVTOOLS=0
+DEV_TOOLS_DAYS=
+DEV_TOOLS_ONLY=
 SKIP_CLEAN=0
 SKIP_DERIVEDDATA=0
 SKIP_ARCHIVE=0
@@ -151,6 +178,31 @@ while [[ $# -gt 0 ]]; do
     --exclude-secrets)
       EXCLUDE_SECRETS=1
       shift
+      ;;
+    --dev-tools)
+      DEV_TOOLS=1
+      shift
+      ;;
+    --yes-devtools)
+      DEV_TOOLS=1
+      AUTO_DEVTOOLS=1
+      shift
+      ;;
+    --preview-dev-tools)
+      DEV_TOOLS=1
+      PREVIEW_DEVTOOLS=1
+      shift
+      ;;
+    --dev-tools-days)
+      [[ $# -lt 2 ]] && { echo "Missing value for --dev-tools-days" >&2; exit 1; }
+      [[ "$2" =~ ^[0-9]+$ ]] || { echo "--dev-tools-days needs a whole number of days" >&2; exit 1; }
+      DEV_TOOLS_DAYS="$2"
+      shift 2
+      ;;
+    --dev-tools-only)
+      [[ $# -lt 2 ]] && { echo "Missing value for --dev-tools-only" >&2; exit 1; }
+      DEV_TOOLS_ONLY="$2"
+      shift 2
       ;;
     --no-clean)
       SKIP_CLEAN=1
@@ -776,6 +828,40 @@ if [[ "$BF_CONFIRM" =~ ^[Yy]$ ]]; then
   echo "  Build folder summary: removed $(human_readable_kb "$bf_removed_kb"), failed $bf_fail"
 else
   echo "  Skipped — no build folders removed."
+fi
+echo ""
+
+# =============================================================================
+# STEP 3c — Xcode and developer-tool leftovers (opt-in, via dev_space_cleanup.sh)
+# =============================================================================
+echo "=============================================="
+echo "  Developer Tools Cleanup"
+echo "=============================================="
+if [[ $DEV_TOOLS -eq 1 ]]; then
+  DEV_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/dev_space_cleanup.sh"
+  if [[ ! -f "$DEV_SCRIPT" ]]; then
+    echo "  ✗ dev_space_cleanup.sh not found next to this script ($DEV_SCRIPT) — skipped."
+  else
+    declare -a DEV_ARGS=( clean )
+    # Step 3 already removed the DerivedData of the projects found, so by default
+    # leave that category out rather than handle it twice.
+    DEV_ARGS+=( --only "${DEV_TOOLS_ONLY:-archives,devsupport,caches,simulators}" )
+    [[ -n "$DEV_TOOLS_DAYS" ]] && DEV_ARGS+=( --days "$DEV_TOOLS_DAYS" )
+    if [[ $PREVIEW_DEVTOOLS -eq 1 ]]; then
+      DEV_ARGS+=( --dry-run )
+      echo "  Preview only (--preview-dev-tools) — nothing moved."
+    elif [[ $AUTO_DEVTOOLS -eq 1 ]]; then
+      DEV_ARGS+=( --yes )
+      echo "  Auto mode enabled (--yes-devtools) — proceeding."
+    fi
+    if bash "$DEV_SCRIPT" "${DEV_ARGS[@]}"; then
+      :
+    else
+      echo "  ✗ dev_space_cleanup.sh exited with an error — continuing."
+    fi
+  fi
+else
+  echo "  Skipped — not requested (use --dev-tools)."
 fi
 echo ""
 

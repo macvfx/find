@@ -38,6 +38,7 @@ Use this when you want to:
 - detect schemes (when `xcodebuild -list` can see them)
 - run `xcodebuild clean`
 - remove matching Xcode `DerivedData` folders
+- optionally clear Xcode leftovers outside the scanned folder (`--dev-tools`, see 4c)
 - optionally create a password-protected zip archive of the scanned folder
 - estimate recoverable `.build` + `DerivedData` space before cleanup
 - archive step excludes all common cache/build artifacts by default:
@@ -138,6 +139,19 @@ bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive -
 bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --yes-buildfolders ~/Code
 ```
 
+### 4c) Clear Xcode leftovers (archives, device support, caches, simulators)
+`--dev-tools` adds a step after the build folders that runs [`dev_space_cleanup.sh`](dev_space_cleanup.sh), which must sit in the same folder as this script. It works outside the search root: old `.xcarchive` bundles (the newest archive of each app is always kept, because it holds that build's dSYMs), old device-support folders, Xcode and SwiftPM caches (skipped while Xcode is open), and unavailable simulators. It asks per category and moves items to the Trash. Because step 2 already removes the DerivedData of the projects it found, that category is left out unless you name it with `--dev-tools-only`. This step is not part of `--yes-all`.
+```bash
+# List what would be done; moves nothing
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --preview-dev-tools ~/Code
+
+# Ask per category (archives older than 90 days)
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --dev-tools --dev-tools-days 90 ~/Code
+
+# No questions
+bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata --no-archive --yes-devtools ~/Code
+```
+
 ### 5) Xcode report-only mode (no changes)
 ```bash
 bash "find_xcode_projects_cleanup.sh" --no-clean --no-deriveddata ~/Code
@@ -201,4 +215,5 @@ bash "find_xcode_projects_cleanup.sh" ~/Code ~/Documents/Reports
 - Both scripts are read-only until you confirm cleanup/archive steps (unless using `--yes-*`)
 - Deleting `.build` and `DerivedData` is safe, but the next build will be slower
 - `xcodebuild clean` may fail on some projects if schemes are not shared/detectable; the script reports failures and continues
+- `--dev-tools` moves items to the Trash, so they can be put back; the space is freed when you empty it
 - `find_xcode_projects_cleanup.sh --yes-all` now includes the archive step too; use `--no-archive` if you only want cleanup

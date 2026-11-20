@@ -22,6 +22,10 @@
 #   simulators  removes only "unavailable" devices; runtimes are listed, never
 #                deleted here (that is a choice — see the hint printed)
 #
+# Also run from find_xcode_projects_cleanup.sh --dev-tools. The same rules are
+# implemented in Swift in Code Project Backup (DevToolsCleanupService.swift, in
+# the CodeCleanUp repo): change one, change the other.
+#
 # Everything is moved to the Trash through Finder, so it can be put back. Space is
 # freed when the Trash is emptied.
 

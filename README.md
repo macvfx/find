@@ -12,7 +12,7 @@
 7. **[find-mdls-exif-sort.sh](find-mdls-exif-sort.sh)** copies JPEG and PNG files into folders based on Spotlight content-creation metadata.
 8. **[mk1R3Dthumbnail.sh](mk1R3Dthumbnail.sh)** uses REDline to create JPEG thumbnails from R3D media, with dry-run and verbose modes.
 9. **[find_build_folders.sh](find_build_folders.sh)** scans for SwiftPM `.build` folders, creates reports, and offers cleanup and archive workflows. See [find_build_folders_README.md](find_build_folders_README.md).
-10. **[find_xcode_projects_cleanup.sh](find_xcode_projects_cleanup.sh)** scans Xcode projects, cleans build artifacts, removes matching DerivedData, and can create an archive. See [find_xcode_proj_cleanup_README.md](find_xcode_proj_cleanup_README.md).
+10. **[find_xcode_projects_cleanup.sh](find_xcode_projects_cleanup.sh)** scans Xcode projects, cleans build artifacts, removes matching DerivedData, can clear old Xcode archives, device support and caches (`--dev-tools`, via `dev_space_cleanup.sh`), and can create an archive. See [find_xcode_proj_cleanup_README.md](find_xcode_proj_cleanup_README.md).
 11. **[intel_inventory.sh](intel_inventory.sh)** finds Intel-only macOS apps and binaries that require Rosetta on Apple Silicon. See [intel_inventory_README.md](intel_inventory_README.md).
 12. **[simplemdm_intel_inventory.sh](simplemdm_intel_inventory.sh)** emits compact Intel-only inventory for a SimpleMDM custom attribute. See [intel_inventory_README.md](intel_inventory_README.md#simplemdm-custom-attribute).
 13. **[create_skeleton.sh](create_skeleton.sh)** recreates a source folder's complete directory hierarchy without copying files, with depth limits and ZIP output. See [create_skeleton_README.md](create_skeleton_README.md).

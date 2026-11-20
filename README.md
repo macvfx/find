@@ -22,6 +22,8 @@
 17. **[file-type-count2csv-EachSubFolder.sh](file-type-count2csv-EachSubFolder.sh)** counts one extension inside each top-level folder of a path and writes a CSV.
 18. **[file-type-count2csv-and-du-EachSubFolder.sh](file-type-count2csv-and-du-EachSubFolder.sh)** counts one extension and measures the total size of every folder two levels down (`path/year/project`), and writes a CSV.
 
+19. **[dev_space_cleanup.sh](dev_space_cleanup.sh)** reports and reclaims space used by Xcode and developer tools: old `.xcarchive` bundles (newest per app always kept), old device-support symbols, stale DerivedData, Xcode and SwiftPM caches, and unavailable simulators. Report-only by default; `clean` moves candidates to the Trash after asking. See the [notes below](#dev-space-cleanup-script-notes).
+
 ## Notes
 
 - Find files with file names greater than 140 characters (move and archive) or find trailing spaces at the end of a directory name and rewrite the name. Variant with extra logging and a confirmation step to see the list of changes before changing them. Use with caution. **Test before using. Always have backups.**
@@ -48,3 +50,12 @@
 - Names with commas, quotes or even newlines are counted correctly and quoted in the CSV.
 - The two `file-type-count2csv-*` scripts write to a new private folder under `$TMPDIR`. Add `--share` to also copy the CSV to `/Users/Shared/<volume>_<extension>/`.
 - They use macOS `stat -f` and `open`, so they are written for macOS.
+
+## Dev Space Cleanup Script Notes
+
+- `bash dev_space_cleanup.sh` only reports. `clean` asks per category; `clean --dry-run` lists without moving; `clean --yes` skips the questions. `--days N` sets the archive age (default 60), `--derived-days N` the DerivedData age (default 14), `--only archives,devsupport,derived,caches,simulators` limits the categories, `--list` prints every path.
+- **Archives:** an `.xcarchive` holds the only dSYMs for that build, so the newest archive of each app is always kept regardless of age. Archives are grouped by app name with the timestamp or version stripped.
+- **Device support:** keeps the newest OS version per device model; Xcode rebuilds an entry the next time the device is connected.
+- **Simulators:** only "unavailable" devices are removed. Runtimes are listed with their sizes but never deleted by the script (`xcrun simctl runtime delete <id>`).
+- Everything goes to the Trash through Finder, so it can be put back. Space is freed when the Trash is emptied.
+- Uses `find` only for the DerivedData age test; archives and device support are grouped with the system `python3`.
